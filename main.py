@@ -1,11 +1,18 @@
+import sys
+
 from Model import Model
 from Solver import Solver
+from GUI import GUI
 
 
-m = Model(100)
-m.BuildModel()
-s = Solver(m, 100)
-sol = s.solve()
-s.report_solution()
+
+def main():
+    print(sys.executable)
+    gui = GUI()
+    gui.start()
+
+if __name__ == '__main__':
+    main()
+
 
 

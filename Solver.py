@@ -1,10 +1,22 @@
+import random
+
 from Solution import Solution
 from Route import Route
 
-# class for storing relocation move information
+
 from SolutionDrawer import SolDrawer
 
+# class for storing customers to be inserted in the solution
 
+
+
+class customer_insertion(object):
+    def __init__(self):
+        self.customer = None
+        self.route = None
+        self.cost = 10 ** 9
+        self.time = 0
+# class for storing relocation move information
 class relocation_move(object):
     def __init__(self):
         self.originRoutePosition = None
@@ -60,8 +72,9 @@ class two_opt_move(object):
         self.positionOfSecondNode = None
         self.moveCost = 10 ** 9
 
+# main class with all the solving information stored and all the functions needed to solve
 class Solver:
-    def __init__(self, m, n_clients):
+    def __init__(self, m, n_clients, speed):
         self.allNodes = m.all_nodes
         self.customers = m.customers
         self.matrix_dist = m.matrix_dist
@@ -69,31 +82,67 @@ class Solver:
         self.bestSolution = None
         self.overallBestSol = None
         self.number_of_clients = n_clients
+        self.speed = speed
         self.visited_count = 0
         self.model = m
         self.search_trajectory = []
+        self.rcl_size = 1
+        self.VND_images = []
 
 
+    def find_a_first_solution(self, algo, time, trucks, capacity):
+        available_trucks = [(trucks, capacity)]
+        empty_solution = self.initialize_solution(available_trucks, time)
+        if algo == 1:
+            self.sol = self.find_first_solution(empty_solution)
+        elif algo == 2:
+            for i in range(1000):
+                temp_sol = self.find_bad_solution(empty_solution, i)
+                if self.sol is None or self.sol.cost > temp_sol.cost:
+                    self.sol = temp_sol
+
+        self.test_solution()
+        SolDrawer.draw(-1, self.sol, self.allNodes, "Minimum Iterations First Solution || Cost: " + str(round(self.sol.cost, 2)))
+        return True
+
+    def improve_solution(self, GUI):
+        print(22)
+
+    '''
+    Main method that starts the solving process 
+    '''
     def solve(self):
-        self.sol = self.find_bad_solution(self.initialize_solution())
+        available_trucks = [(15, 1500), (15, 1200)]
 
+
+        # Initializing the solution with Routes with 1 node the depot
+        empty_solution = self.initialize_solution(available_trucks)
+
+        # Finding the first solution
+
+        for i in range(100):
+            self.sol = self.find_first_solution(empty_solution)
+        self.test_solution()
+        # Start the VND algorithm
         self.VND()
 
     '''
     Creates a list of 30 empty routes with the capacities given (1200, 1500)
     '''
-    def initialize_solution(self):
-        init_sol = [Route for x in range(30)]
-        for index in range(30):
+    def initialize_solution(self, available_trucks, time):
+        tucks_number = list(map(sum, zip(*available_trucks)))[0]
+        init_sol = [Route for x in range(tucks_number)]
+        index = 0
+        for a_truck in range(len(available_trucks)):
+            for i in range(available_trucks[a_truck][0]):
+                cap = available_trucks[a_truck][1]
+                r = Route(cap, time)
 
-            if index < 15:
-                cap = 1500
-            else:
-                cap = 1200
-            r = Route(cap)
+                r.clients.append(self.model.all_nodes[0])
+                init_sol[index] = r
+                index += 1
 
-            r.clients.append(self.model.all_nodes[0])
-            init_sol[index] = r
+
         return init_sol
 
     '''
@@ -108,44 +157,92 @@ class Solver:
                     total_distance += self.model.matrix_dist[route.clients[j].id][route.clients[j + 1].id]
         return total_distance
 
+
+
     # TODO
-    def find_bad_solution(self, sol):
-        clients_visited = 1
-        route_index = 0
-        while clients_visited < len(self.allNodes):
+    def find_bad_solution(self, sol, i):
 
+        insertions = 1
+        route = 0
+        while insertions < len(self.allNodes) and route <= 29:
+            best_insertion = customer_insertion()
+            self.identify_nearest_neighbour_of_last_visited(route, best_insertion, sol, i)
 
-            prev_node = sol[route_index].clients[-1]
-            candidate_cost = None
-            min_cost = 999999999
-            min_index = 0
-            for candidate_index in range(1, len(self.allNodes)):
-                if self.allNodes[candidate_index].id != prev_node.id and not self.allNodes[candidate_index].visited:
-                    candidate_cost = self.matrix_dist[prev_node.id][self.allNodes[candidate_index].id]
-                    time_after = sol[route_index].time_left - self.model.all_nodes[
-                        candidate_index].service_time - candidate_cost / 35
-                    load_after = sol[route_index].load + self.allNodes[
-                        candidate_index].demand
-                    if candidate_cost < min_cost and time_after >= 0 and load_after <= sol[route_index].capacity:
-                        min_cost = candidate_cost
-                        min_index = candidate_index
-                        min_load = load_after
-                        min_time_after = time_after
-            if min_index == 0:
-                route_index += 1
+            if best_insertion.customer is not None:
+                self.customer_insertion(best_insertion)
+                insertions += 1
             else:
-                sol[route_index].clients.append(self.allNodes[min_index])
-                sol[route_index].time_left = min_time_after
-                sol[route_index].load = min_load
-                sol[route_index].cost = min_cost
-                self.allNodes[min_index].visited = True
+                route += 1
         sol_to_return = Solution(sol)
         sol_to_return.cost = self.get_solution_cost(sol_to_return.routes)
 
-
-        sol_to_return = Solution(sol)
-        sol_to_return.cost = self.get_solution_cost(sol_to_return.routes)
         return sol_to_return
+
+    def identify_nearest_neighbour_of_last_visited(self, route, best_insertion, sol, i):
+        minimum_client = ()
+        random.seed(i)
+        rcl = []
+
+        for candidate_index in range(1, len(self.allNodes)):
+            candidate_client = self.allNodes[candidate_index]
+            if candidate_client.visited is False:
+                load_after = sol[route].load + candidate_client.demand
+                last_client_visited = sol[route].clients[-1]
+                trial_cost = self.matrix_dist[candidate_client.id][last_client_visited.id]
+                time_after = sol[route].time_left - self.model.all_nodes[
+                    candidate_index].service_time - trial_cost / self.speed
+                if load_after <= sol[route].capacity and time_after >= 0:
+
+                    '''
+                    With rcl
+                    '''
+                    if len(rcl) < self.rcl_size:
+                        tup_to_insert = (trial_cost, candidate_client, sol[route], time_after)
+                        rcl.append(tup_to_insert)
+                        rcl.sort(key=lambda x: x[0])
+                    elif trial_cost < rcl[-1][0]:
+                        rcl.pop(len(rcl) -1)
+                        tup_to_insert = (trial_cost, candidate_client, sol[route], time_after)
+                        rcl.append(tup_to_insert)
+                        rcl.sort(key=lambda x: x[0])
+                    '''
+                    Without rcl
+                    '''
+                    # if len(minimum_client) == 0:
+                    #     minimum_client = (trial_cost, candidate_client, sol[route], time_after)
+                    # elif trial_cost < minimum_client[0]:
+                    #     minimum_client = (trial_cost, candidate_client, sol[route], time_after)
+        '''
+        Without rcl
+        '''
+        # if len(minimum_client) > 0:
+        #     best_insertion.cost = minimum_client[0]
+        #     best_insertion.customer = minimum_client[1]
+        #     best_insertion.route = minimum_client[2]
+        #     best_insertion.time = minimum_client[3]
+        '''
+        With rcl
+        '''
+        if len(rcl) > 0:
+            tup_index = random.randint(0, len(rcl) - 1)
+            tpl = rcl[tup_index]
+            best_insertion.cost = tpl[0]
+            best_insertion.customer = tpl[1]
+            best_insertion.route = tpl[2]
+            best_insertion.time = tpl[3]
+
+    def customer_insertion(self, insertion):
+        customer = insertion.customer
+        route = insertion.route
+        cost = insertion.cost
+        route.clients.append(customer)
+        route.cost += cost
+        route.load += customer.demand
+        customer.visited = True
+        route.time_left = insertion.time
+
+
+
     '''
     With a given empty Solution object the method is constructing step by step the
     first solution for the optimization problem.
@@ -159,6 +256,7 @@ class Solver:
             vehicle_in_store = False
             min_time = -1
             # Run through all routes in solution
+            min_node = self.model.all_nodes[0]
             for routeIndex in range(len(sol)):
                 if self.visited_count > self.number_of_clients:
                     break
@@ -187,7 +285,7 @@ class Solver:
                     capacity_after = sol[routeIndex].capacity - sol[routeIndex].load - self.model.all_nodes[nodeIndex].demand
                     # Time of route after the insertion
                     time_after = sol[routeIndex].time_left - self.model.all_nodes[
-                        nodeIndex].service_time - candidate_cost / 35
+                        nodeIndex].service_time - candidate_cost / self.speed
                     # If cost is lower and limitations are not violated
                     if candidate_cost < min_cost and capacity_after >= 0 and time_after >= 0:
                         min_cost = candidate_cost
@@ -201,15 +299,17 @@ class Solver:
             final_node = None
             final_index = -1
 
+
+
             for i in range(len(candidates)):
                 if candidates[i][1] < final_min:
                     final_min = candidates[i][1]
                     final_node = self.model.all_nodes[candidates[i][0]]
                     final_index = i
             if final_index == -1 or min_time == -1:
-                continue
+                break
             self.model.all_nodes[final_node.id].visited = True
-            sol[final_index].time_left -= final_min / 35 + 0.25
+            sol[final_index].time_left -= final_min / self.speed + 0.25
             sol[final_index].load += self.model.all_nodes[final_node.id].demand
             sol[final_index].clients.append(final_node)
             sol[final_index].cost += final_min
@@ -240,7 +340,7 @@ class Solver:
             print('')
             print("Capacity Left: ", self.sol.routes[i].capacity - self.sol.routes[i].load)
             total_loading_time = (len(self.sol.routes[i].clients) - 1) * 0.25
-            print('Total km\'s done:', (3.5 - self.sol.routes[i].time_left - total_loading_time) * 35)
+            print('Total km\'s done:', (3.5 - self.sol.routes[i].time_left - total_loading_time) * self.speed)
             print("Total time: ", 3.5 - self.sol.routes[i].time_left)
             print("----------------------------")
         print(self.sol.cost)
@@ -396,7 +496,7 @@ class Solver:
         self.bestSolution.cost = self.sol.cost
         terminationCondition = False
         relocation_counter = 0
-        print('Starting local search to find local optimum of first solution...')
+        print('Starting local search tsearch to find local optimum of first solution...')
         print('Using Relocation Move algorithm...')
         while terminationCondition == False:
             sm = swap_move()
@@ -540,7 +640,7 @@ class Solver:
 
 
     def VND(self):
-        print('Starting the VND algorithm with inital solution cost: ', self.sol.cost)
+        print('Starting the VND algorithm with initial solution cost: ', self.sol.cost)
         self.bestSolution = Solution(self.sol.routes)
         self.bestSolution.cost = self.sol.cost
         VNDIterator = 0
@@ -560,10 +660,11 @@ class Solver:
             if k == 1:
                 self.find_best_relocation_move(rm)
                 if rm.originRoutePosition is not None and rm.moveCost < 0:
-                    print('Step ', VNDIterator, ' Applying relocation move')
-                    print('Cost before step ', VNDIterator, ': ', self.sol.cost)
+                    print('Step ', VNDIterator + 1, ' Applying relocation move')
+                    print('Cost before step ', VNDIterator + 1, ': ', self.sol.cost)
                     self.apply_relocation_move(rm)
                     rm_cn_vnd += 1
+                    self.VND_images.append(str(VNDIterator+1) + ".png")
                     VNDIterator = VNDIterator + 1
                     self.search_trajectory.append(self.sol.cost)
                     k = 0
@@ -576,6 +677,7 @@ class Solver:
                     print('Cost before step ', VNDIterator + 1, ': ', self.sol.cost)
                     self.apply_swap_move(sm)
                     sm_cn_vnd += 1
+                    self.VND_images.append(str(VNDIterator+1) + ".png")
                     VNDIterator = VNDIterator + 1
                     self.search_trajectory.append(self.sol.cost)
                     k = 0
@@ -584,10 +686,11 @@ class Solver:
             elif k == 0:
                 self.find_best_twoOpt_move(top)
                 if top.positionOfFirstRoute is not None and top.moveCost < 0:
-                    print('Step ', VNDIterator + 1, ' Applying twoOpt Move move')
+                    print('Step ', VNDIterator + 1, ' Applying twoOpt move')
                     print('Cost before step ', VNDIterator + 1, ': ', self.sol.cost)
                     self.apply_two_opt_move(top)
                     top_cn_vnd += 1
+                    self.VND_images.append(str(VNDIterator+1) + ".png")
                     VNDIterator = VNDIterator + 1
                     self.search_trajectory.append(self.sol.cost)
                     k = 0
@@ -598,12 +701,16 @@ class Solver:
                 print('Cost after step ', VNDIterator, ': ', self.sol.cost)
                 self.bestSolution = Solution(self.sol)
                 self.bestSolution.cost = self.sol.cost
-            SolDrawer.draw(VNDIterator, self.sol, self.allNodes)
+            SolDrawer.draw(VNDIterator, self.sol, self.allNodes,
+                           "Improving Solution || Step {0} with Cost: {1}".format(str(VNDIterator),
+                                                                                  str(round(self.sol.cost, 2))))
+
         print('Local optimum cost was found to be: ', self.sol.cost, ' after: ')
         print(rm_cn_vnd, ' Relocation Moves, ')
         print(sm_cn_vnd, ' Swap Moves')
         print(top_cn_vnd, ' TwpOpt Moves')
-        SolDrawer.draw(VNDIterator, self.sol, self.allNodes)
+        SolDrawer.draw('final', self.sol, self.allNodes, "Final Solution || Total Steps: " + str(VNDIterator).format(str(VNDIterator),
+                                                                                  str(round(self.sol.cost, 2))))
         SolDrawer.drawTrajectory(self.search_trajectory)
 
 
@@ -627,3 +734,18 @@ class Solver:
 
         if abs(totalSolCost - self.sol.cost) > 0.0001:
             print('Solution Cost problem')
+        demand_remaining = 0
+        load_remaining = 0
+        for i in self.allNodes:
+            if i.visited is False:
+                unable_to_serve_all_clients = True
+                demand_remaining += i.demand
+                print('Client ', i.id, ' is not visited')
+        if demand_remaining > 0:
+            for z in self.sol.routes:
+                load_remaining += z.capacity - z.load
+            if demand_remaining >= load_remaining:
+                print('Your trucks capacity are insufficient. ', demand_remaining,
+                      ' of product is remaining undelivered and your trucks can carry ', load_remaining, ' more.')
+            else:
+                print('Your trucks\' available time is insufficient')

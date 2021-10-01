@@ -6,3 +6,4 @@ class Client:
         self.x = xx
         self.y = yy
         self.visited = False
+

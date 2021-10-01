@@ -5,20 +5,23 @@ from SolutionDrawer import SolDrawer
 
 class Model:
 # instance variables
-    def __init__(self, n_customers):
+    def __init__(self, n_customers, depot_location, service_time, speed):
         self.all_nodes = []
         self.customers = []
         self.matrix_dist = []
         self.matrix_time = []
         self.number_of_customers = n_customers
+        self.depot_x = depot_location[0]
+        self.depot_y = depot_location[1]
+        self.service_time = service_time
+        self.speed = speed
 
     def BuildModel(self):
-        # birthday 08/02/1999
-        birthday = 8021999
-        random.seed(birthday)
+
+
 
         customers = []
-        depot = Client(0, 0, 0, 50, 50)
+        depot = Client(0, 0, 0, self.depot_x, self.depot_y)
         depot.visited = True
         self.all_nodes.append(depot)
         random.seed(1)
@@ -29,7 +32,7 @@ class Model:
             dem = random.randint(1, 5) * 100
             xx = random.randint(0, 100)
             yy = random.randint(0, 100)
-            st = 0.25  # 15 minutes in hrs
+            st = self.service_time  # 15 minutes in hrs
             cust = Client(id, st, dem, xx, yy)
             self.all_nodes.append(cust)
             self.customers.append(cust)
@@ -44,7 +47,7 @@ class Model:
                 a = self.all_nodes[i]
                 b = self.all_nodes[j]
                 dist = math.sqrt(math.pow(a.x - b.x, 2) + math.pow(a.y - b.y, 2))
-                self.matrix_time[i][j] = dist / 35
+                self.matrix_time[i][j] = dist / self.speed
                 self.matrix_dist[i][j] = dist
 
 

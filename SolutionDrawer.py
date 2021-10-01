@@ -9,10 +9,12 @@ class SolDrawer:
         return plt.cm.get_cmap(name, n)
 
     @staticmethod
-    def draw(itr, sol, nodes):
+    def draw(itr, sol, nodes, title):
         plt.clf()
+
         SolDrawer.drawPoints(nodes)
         SolDrawer.drawRoutes(sol)
+        plt.title(title)
         plt.savefig(str(itr))
 
     @staticmethod
@@ -23,7 +25,11 @@ class SolDrawer:
             n = nodes[i]
             x.append(n.x)
             y.append(n.y)
-        plt.scatter(x, y, c="blue")
+        for i in range(len(x)):
+            if i ==0:
+                plt.scatter(x[i], y[i], c="red")
+            else:
+                plt.scatter(x[i], y[i], c="blue")
         plt.savefig(str('points'))
 
     @staticmethod
