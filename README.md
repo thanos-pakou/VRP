@@ -19,6 +19,8 @@ The VRP problem specifics:
 
 - Solution - The solution is a class containing a list of Routes and the total cost.
 
-- Constraints - The constraints are that each truck's route ends in their final customer, each route has a time limit that cannot be surpassed, each route has a capacity limit, each customer has to be served only by 1 truck-route.
+- Constraints - The constraints are that each truck's route ends in their final customer, each route has a time limit that cannot be surpase
 
+## Flow
 
+The program starts by initializing the GUI class and then starts the main loop of the Tkinter library. In the init method of GUI class the graphical environment is being initialized and then first screen is popping up to the screen allowing user to modify some varriables and constraints of the problem. In this screen the user can also select with which algorith the initial solution will occur (either nearest neighbour or minimum iterations. After that, the program finds a solution shows it to the user via pyplot as a graph. The user can see the initial cost and the trucks routes. In this screen the user can press the buttom "Improve Solution" to start the VND algorithm with the first solution as arguement. Then, the VND algorithm find the best combination of swap, rellocation and twoOpt moves and make step by step changes to improve the cost. If the cost cannot be imporved, the algorithm stops. All solutions are being saved in a list, ther best solution is being shown to the user as a graph and all other solutions are being put in a queue. Another thread is starting to pop all other solutions from the queue and saving them as images to then be presented to the user. User also has access to the Trajectory image showing the decrease in the value of the objective function.
