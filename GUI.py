@@ -1,3 +1,4 @@
+import threading
 import tkinter as tk
 from Model import Model
 from Solver import Solver
@@ -51,6 +52,7 @@ class GUI:
 
         self.improved_solutions_label = None
         self.improved_solution_label = None
+        self.trajectory = None
         self.final_solution_label = None
         self.m = None
         self.s = None
@@ -59,7 +61,7 @@ class GUI:
         self.images_index = 0
         self.init_first_screen()
 
-
+        self.thread = None
 
 
         self.p = None
@@ -76,8 +78,13 @@ class GUI:
 
 
     def submit(self):
+        if self.thread is not None:
+            self.s.stop_threading = True
+            self.thread.join()
         if self.final_solution_label is not None:
             self.final_solution_label.destroy()
+        if self.trajectory is not None:
+            self.trajectory.destroy()
         if self.improved_solutions_label is not None:
             self.improved_solutions_label.destroy()
         if self.first_solution_label is not None:
@@ -153,7 +160,7 @@ class GUI:
         self.capacity_entry.place(x=15, y= 590)
 
 
-        register = tk.Button(self.screen, text="Gogogo", width="30", height="2", command=self.submit, bg="grey")
+        register = tk.Button(self.screen, text="Find First Solution", width="30", height="2", command=self.submit, bg="grey")
         register.place(x=15, y=740)
 
         print('start')
@@ -178,16 +185,19 @@ class GUI:
             self.next_image.destroy()
             self.prev_image.destroy()
         self.image_label.destroy()
-        self.image = ImageTk.PhotoImage(Image.open((self.s.VND_images[self.images_index])).resize(
-            (int(self.mon_width / 2), int(self.mon_width / 2))), master=self.screen)
-        self.image_label = tk.Label(self.screen, image=self.image, width=self.mon_width / 2, height=self.mon_width / 2)
-        self.image_label.pack()
+        try:
+            self.image = ImageTk.PhotoImage(Image.open((self.s.VND_images[self.images_index])).resize(
+                (int(self.mon_width / 2), int(self.mon_width / 2))), master=self.screen)
+            self.image_label = tk.Label(self.screen, image=self.image, width=self.mon_width / 2, height=self.mon_width / 2)
+            self.image_label.pack()
 
-        self.next_image = tk.Button(self.screen, text="Next", width="30", height="2", command=self.next_image_for, bg="grey")
-        self.next_image.place(x=2000, y=450)
+            self.next_image = tk.Button(self.screen, text="Next", width="30", height="2", command=self.next_image_for, bg="grey")
+            self.next_image.place(x=2000, y=450)
 
-        self.prev_image = tk.Button(self.screen, text="Previous", width="30", height="2", command=self.prev_image_for, bg="grey")
-        self.prev_image.place(x=2000, y=550)
+            self.prev_image = tk.Button(self.screen, text="Previous", width="30", height="2", command=self.prev_image_for, bg="grey")
+            self.prev_image.place(x=2000, y=550)
+        except:
+            print("Image hasn't loaded yet")
 
 
 
@@ -199,8 +209,22 @@ class GUI:
         if self.next_image:
             self.next_image.destroy()
             self.prev_image.destroy()
+        self.image_label.destroy()
 
         self.image = ImageTk.PhotoImage(Image.open('final.png').resize(
+            (int(self.mon_width / 2), int(self.mon_width / 2))), master=self.screen)
+        self.image_label = tk.Label(self.screen, image=self.image, width=self.mon_width / 2, height=self.mon_width / 2)
+        self.image_label.pack()
+
+
+    def print_trajectort(self):
+        if self.improved_solution_label:
+            self.improved_solution_label.destroy()
+        self.image_label.destroy()
+        if self.next_image:
+            self.next_image.destroy()
+            self.prev_image.destroy()
+        self.image = ImageTk.PhotoImage(Image.open('SearchTrajectory.png').resize(
             (int(self.mon_width / 2), int(self.mon_width / 2))), master=self.screen)
         self.image_label = tk.Label(self.screen, image=self.image, width=self.mon_width / 2, height=self.mon_width / 2)
         self.image_label.pack()
@@ -211,10 +235,13 @@ class GUI:
             self.images_index = 0
         else:
             self.images_index += 1
-        self.image = ImageTk.PhotoImage(Image.open((self.s.VND_images[self.images_index])).resize(
-            (int(self.mon_width / 2), int(self.mon_width / 2))), master=self.screen)
-        self.image_label = tk.Label(self.screen, image=self.image, width=self.mon_width / 2, height=self.mon_width / 2)
-        self.image_label.pack()
+        try:
+            self.image = ImageTk.PhotoImage(Image.open((self.s.VND_images[self.images_index])).resize(
+                (int(self.mon_width / 2), int(self.mon_width / 2))), master=self.screen)
+            self.image_label = tk.Label(self.screen, image=self.image, width=self.mon_width / 2, height=self.mon_width / 2)
+            self.image_label.pack()
+        except:
+            print("Image hasn't loaded yet")
 
     def prev_image_for(self):
         self.image_label.destroy()
@@ -222,10 +249,14 @@ class GUI:
             self.images_index = len(self.s.VND_images) - 1
         else:
             self.images_index -= 1
-        self.image = ImageTk.PhotoImage(Image.open((self.s.VND_images[self.images_index])).resize(
+        try:
+
+            self.image = ImageTk.PhotoImage(Image.open((self.s.VND_images[self.images_index])).resize(
             (int(self.mon_width / 2), int(self.mon_width / 2))), master=self.screen)
-        self.image_label = tk.Label(self.screen, image=self.image, width=self.mon_width / 2, height=self.mon_width / 2)
-        self.image_label.pack()
+            self.image_label = tk.Label(self.screen, image=self.image, width=self.mon_width / 2, height=self.mon_width / 2)
+            self.image_label.pack()
+        except:
+            print("Image hasn't loaded yet")
 
 
 
@@ -236,7 +267,8 @@ class GUI:
 
         self.s.VND()
         self.s.report_solution()
-
+        self.thread = threading.Thread(target=self.s.save_sol)
+        self.thread.start()
 
         self.improved_solutions_label = tk.Button(self.screen, text="Improved Solutions", command=self.print_improved_solutions_result)
         self.improved_solutions_label.pack(side=tk.RIGHT)
@@ -244,8 +276,12 @@ class GUI:
         self.final_solution_label = tk.Button(self.screen, text="Final Solution", command=self.print_final_solution)
         self.final_solution_label.pack(side=tk.RIGHT)
 
-        self.print_improved_solutions_result()
+        self.trajectory = tk.Button(self.screen, text="Trajectory", command=self.print_trajectort)
+        self.trajectory.pack(side=tk.RIGHT)
 
+
+
+        self.print_final_solution()
 
 
 
